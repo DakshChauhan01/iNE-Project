@@ -15,13 +15,13 @@ A robust, full-stack application built to reliably scrape and track product pric
 - Node.js >= 18
 - PostgreSQL Database (e.g., Supabase)
 
-### Backend Setup
+### Backend Setup (Local & Render)
 1. `cd backend`
 2. `npm install`
 3. Create a `.env` file with `DATABASE_URL="postgresql://user:password@host:port/dbname?schema=public"` and `CRON_SECRET="your-secure-secret"`
 4. Run `npx prisma db push` to initialize the database schema.
-5. Run `npx playwright install --with-deps chromium` to ensure the browser is available.
-6. Start the server: `npm run dev`
+5. Local Dev: Run `npm run dev` to start the server via `tsx`.
+6. **Deployment (Render)**: The backend is fully configured for Render via the included `Dockerfile`. It uses `mcr.microsoft.com/playwright:v1.63.0-jammy` to ensure headless Chromium matches the exact `playwright` npm package version. Prisma CLI and TypeScript are installed globally in the image to bypass `node_modules/.bin` execution permission errors (`TS6133`/`Permission denied`). The project strictly follows `NodeNext` ESM module resolution.
 
 ### Frontend Setup
 1. `cd frontend`

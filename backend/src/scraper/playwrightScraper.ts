@@ -22,18 +22,33 @@ async function attemptScrape(page: Page): Promise<{ price: number; in_stock: boo
   
   const box = await priceBlock.boundingBox();
   if (box) {
-     for (let i = 0; i < 20; i++) {
-         await page.mouse.move(box.x + box.width/2 + i*2, box.y + box.height/2 + (i%2)*2);
+     const centerX = box.x + box.width / 2;
+     const centerY = box.y + box.height / 2;
+     for (let i = 0; i < 30; i++) {
+         const offsetX = Math.sin(i) * 10;
+         const offsetY = Math.cos(i) * 10;
+         
+         const safeX = Math.max(box.x + 5, Math.min(box.x + box.width - 5, centerX + offsetX));
+         const safeY = Math.max(box.y + 5, Math.min(box.y + box.height - 5, centerY + offsetY));
+         
+         await page.mouse.move(safeX, safeY);
          await page.waitForTimeout(50);
      }
   }
 
   // Now the 'Reveal price' button should be enabled
   const revealButton = page.locator('button[aria-label="Reveal price"]');
-  await revealButton.waitFor({ state: 'visible', timeout: 5000 });
+  await revealButton.waitFor({ state: 'visible', timeout: 10000 });
   
-  // Wait for it to become enabled
-  await expectEnabled(page, 'button[aria-label="Reveal price"]', 5000);
+  // Wait for it to become enabled (check DOM property, not attribute)
+  await page.waitForFunction(
+    (sel) => {
+      const el = document.querySelector(sel) as HTMLButtonElement;
+      return el && el.disabled === false;
+    },
+    'button[aria-label="Reveal price"]',
+    { timeout: 10000 }
+  );
   
   // Click to fetch the actual price
   await revealButton.click();
@@ -91,15 +106,7 @@ async function attemptScrape(page: Page): Promise<{ price: number; in_stock: boo
   };
 }
 
-async function expectEnabled(page: Page, selector: string, timeout: number) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    const isDisabled = await page.$eval(selector, (el) => (el as HTMLButtonElement).disabled);
-    if (!isDisabled) return;
-    await page.waitForTimeout(100);
-  }
-  throw new Error(`Element ${selector} did not become enabled within ${timeout}ms.`);
-}
+
 
 export async function scrapeProduct(productId: string | number, previousStructureHash?: string | null, headed: boolean = false): Promise<ScrapeResult> {
   const startTime = Date.now();
