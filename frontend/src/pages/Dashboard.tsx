@@ -6,7 +6,7 @@ export default function Dashboard() {
   const { data: products, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:3000/api/products');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/products`);
       if (!res.ok) throw new Error('Failed to fetch products');
       return res.json();
     }

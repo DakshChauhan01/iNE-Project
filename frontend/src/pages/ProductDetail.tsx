@@ -11,7 +11,7 @@ export default function ProductDetail() {
   const { data: history, isLoading: historyLoading } = useQuery({
     queryKey: ['product', id, 'history'],
     queryFn: async () => {
-      const res = await fetch(`http://localhost:3000/api/products/${id}/history`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/products/${id}/history`);
       if (!res.ok) throw new Error('Failed to fetch history');
       return res.json();
     }
@@ -20,7 +20,7 @@ export default function ProductDetail() {
   const { data: logs, isLoading: logsLoading } = useQuery({
     queryKey: ['product', id, 'logs'],
     queryFn: async () => {
-      const res = await fetch(`http://localhost:3000/api/products/${id}/logs`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/products/${id}/logs`);
       if (!res.ok) throw new Error('Failed to fetch logs');
       return res.json();
     }
@@ -28,7 +28,7 @@ export default function ProductDetail() {
 
   const scrapeMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`http://localhost:3000/api/products/${id}/scrape`, { method: 'POST' });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/products/${id}/scrape`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to trigger scrape');
       return res.json();
     },
@@ -39,7 +39,7 @@ export default function ProductDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`http://localhost:3000/api/products/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/products/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       return res.json();
     },
