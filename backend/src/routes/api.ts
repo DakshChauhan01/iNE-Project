@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { scrapeProduct } from '../scraper/playwrightScraper';
+import { scrapeProduct } from '../scraper/playwrightScraper.js';
 
 const router = Router();
 const prisma = new PrismaClient();

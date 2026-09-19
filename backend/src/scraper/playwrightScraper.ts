@@ -1,4 +1,4 @@
-import { chromium, Page } from 'playwright';
+import { chromium, type Page } from 'playwright';
 
 export interface ScrapeResult {
   status: 'success' | 'retried' | 'failed';

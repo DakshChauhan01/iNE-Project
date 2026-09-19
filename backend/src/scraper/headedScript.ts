@@ -1,4 +1,4 @@
-import { scrapeProduct } from './playwrightScraper';
+import { scrapeProduct } from './playwrightScraper.js';
 
 const args = process.argv.slice(2);
 const productId = args[0] || '264';
