@@ -3,9 +3,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm install
-RUN npm install -g prisma@5.22.0
+RUN npm install -g prisma@5.22.0 typescript@5.9.3
 COPY . .
 RUN prisma generate
-RUN npm run build
+RUN tsc
 EXPOSE 3000
 CMD ["npm", "start"]
