@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Search as SearchIcon, Plus, Check } from 'lucide-react';
+import { Search as SearchIcon, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SearchPage() {

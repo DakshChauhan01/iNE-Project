@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Clock, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { Clock, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const { data: products, isLoading, refetch, isFetching } = useQuery({
