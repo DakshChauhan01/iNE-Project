@@ -3,8 +3,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm install
+RUN npm install -g prisma@5.22.0
 COPY . .
-RUN node node_modules/.bin/prisma generate
+RUN prisma generate
 RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]
