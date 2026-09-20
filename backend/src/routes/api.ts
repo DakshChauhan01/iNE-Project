@@ -16,8 +16,9 @@ router.get('/search', async (req, res) => {
     }
     
     const filtered = data.items.filter((item: any) => 
-      item.name.toLowerCase().includes(q) || 
-      item.brand.toLowerCase().includes(q)
+      (item.name && item.name.toLowerCase().includes(q)) || 
+      (item.brand && item.brand.toLowerCase().includes(q)) ||
+      (item.category && item.category.toLowerCase().includes(q))
     );
     
     res.json({ items: filtered });
