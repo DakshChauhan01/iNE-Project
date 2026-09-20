@@ -226,6 +226,8 @@ router.post('/products/:id/scrape', async (req, res) => {
   }
 });
 
+let scrapeInProgress = false;
+
 // POST /api/cron/scrape
 router.post('/cron/scrape', async (req, res) => {
   const CRON_SECRET = process.env.CRON_SECRET || 'dev-secret';
@@ -234,22 +236,33 @@ router.post('/cron/scrape', async (req, res) => {
   if (authHeader !== `Bearer ${CRON_SECRET}` && req.headers['x-cron-secret'] !== CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
-  // Send immediate 200 to cron job provider, then do work in background.
-  res.status(200).json({ message: 'Scrape job started' });
-  
-  try {
-    const products = await prisma.product.findMany({ where: { is_active: true } });
-    for (const product of products) {
-      console.log(`Cron: Scraping product ${product.id}...`);
-      await runScrapeForProduct(product.id, product.store_product_id);
-      // Wait 3 seconds between requests to avoid overloading the site
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    console.log('Cron: Scraping finished.');
-  } catch (err) {
-    console.error('Cron job error:', err);
+
+  if (scrapeInProgress) {
+    return res.status(202).json({ status: 'already_running' });
   }
+  
+  scrapeInProgress = true;
+  res.status(202).json({ status: 'started' });
+  
+  // Do work in background
+  (async () => {
+    try {
+      const products = await prisma.product.findMany({ where: { is_active: true } });
+      for (const product of products) {
+        console.log(`Cron: Scraping product ${product.id}...`);
+        await runScrapeForProduct(product.id, product.store_product_id);
+        // Wait 3 seconds between requests to avoid overloading the site
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      console.log('Cron: Scraping finished.');
+    } catch (err) {
+      console.error('Cron job error:', err);
+    } finally {
+      scrapeInProgress = false;
+    }
+  })().catch(err => {
+    console.error('Unhandled background scrape error:', err);
+  });
 });
 
 export default router;
