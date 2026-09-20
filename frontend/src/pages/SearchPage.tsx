@@ -21,7 +21,7 @@ export default function SearchPage() {
       if (!res.ok) throw new Error('Search failed');
       return res.json();
     },
-    enabled: searchTerm.length > 0,
+    enabled: true,
     staleTime: 60000,
   });
 
@@ -65,10 +65,10 @@ export default function SearchPage() {
     <div className="space-y-6 animate-fade-in relative z-10">
       <div className="glass-panel p-8 rounded-2xl shadow-xl shadow-black/20">
         <h1 className="text-3xl font-bold font-display tracking-tight mb-2">
-          {searchTerm ? `Results for "${searchTerm}"` : "Search Store"}
+          {searchTerm ? `Results for "${searchTerm}"` : "Browse Store"}
         </h1>
         <p className="text-neutral-400">
-          {searchTerm ? "Find products to track from the iNE demo store." : "Enter a search query in the top bar to find products to track."}
+          {searchTerm ? "Find products to track from the iNE demo store." : "Browse popular products to track from the iNE demo store."}
         </p>
       </div>
 
@@ -110,6 +110,27 @@ export default function SearchPage() {
               <input type="number" disabled placeholder="Max" className="w-16 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1 text-xs" />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Category Chips - only show before a search term is active or if we want them as quick filters always */}
+      {!searchTerm && categories.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          <button
+            onClick={() => setSelectedCategory('')}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${!selectedCategory ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-[var(--text-secondary)]'}`}
+          >
+            All
+          </button>
+          {categories.map(c => (
+            <button
+              key={c}
+              onClick={() => setSelectedCategory(c)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${selectedCategory === c ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-[var(--text-secondary)]'}`}
+            >
+              {c}
+            </button>
+          ))}
         </div>
       )}
 
