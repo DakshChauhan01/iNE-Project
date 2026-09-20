@@ -30,7 +30,7 @@ function Header() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {

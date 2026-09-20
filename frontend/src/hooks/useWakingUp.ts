@@ -4,7 +4,7 @@ export function useWakingUp(isLoading: boolean, delayMs = 3000) {
   const [isWakingUp, setIsWakingUp] = useState(false);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (isLoading) {
       timer = setTimeout(() => {
         setIsWakingUp(true);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Search as SearchIcon, Plus, SearchX } from 'lucide-react';
+import { Plus, SearchX } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWakingUp } from '../hooks/useWakingUp';
 import { getCategoryEmoji } from '../utils/categoryEmoji';
@@ -10,7 +10,7 @@ export default function SearchPage() {
   const searchTerm = searchParams.get('q') || '';
   const navigate = useNavigate();
 
-  // selectedBrand removed as it was part of the deleted filter section
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   const { data: searchResults, isLoading } = useQuery({
     queryKey: ['search', searchTerm],
@@ -57,7 +57,6 @@ export default function SearchPage() {
 
   const filteredItems = rawItems.filter((item: any) => {
     if (selectedCategory && item.category !== selectedCategory) return false;
-    if (selectedBrand && item.brand !== selectedBrand) return false;
     return true;
   });
 
