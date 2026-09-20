@@ -75,29 +75,32 @@ async function attemptScrape(page: Page, attemptCount: number): Promise<{ price:
   // Get the entire text of the price block to avoid strict CSS selector dependency
   let blockText = '';
   const startWait = Date.now();
+  let numericPrice = null;
+  const strictPattern = /(?:₹|\$|Rs\.?|INR)\s*([0-9,]+(\.[0-9]{1,2})?)/i;
+
   while (Date.now() - startWait < 10000) {
     blockText = await priceBlock.innerText();
-    if (blockText && !blockText.includes('Loading') && blockText.match(/(?:₹|\$|Rs\.?|INR)?\s*([0-9,]+(\.[0-9]{1,2})?)/i)) {
-      break;
+    if (blockText && !blockText.includes('Loading')) {
+      const priceMatch = blockText.match(strictPattern);
+      if (priceMatch && priceMatch[1]) {
+        const parsed = parseFloat(priceMatch[1].replace(/,/g, ''));
+        if (!isNaN(parsed) && parsed > 0) {
+          numericPrice = parsed;
+          break;
+        }
+      }
     }
     await page.waitForTimeout(500);
   }
+  
+  console.log('RAW TEXT:', blockText);
   
   if (!blockText) {
     throw new Error('Price block is empty after reveal.');
   }
 
-  // Use regex to find the price and stock
-  // E.g. "₹ 24,999" or "Price: 24999"
-  const priceMatch = blockText.match(/(?:₹|\$|Rs\.?|INR)?\s*([0-9,]+(\.[0-9]{1,2})?)/i);
-  let numericPrice = null;
-  
-  if (priceMatch && priceMatch[1]) {
-    numericPrice = parseFloat(priceMatch[1].replace(/,/g, ''));
-  }
-
-  if (numericPrice === null || isNaN(numericPrice)) {
-    throw new Error(`Extracted price is not a valid number: ${blockText}`);
+  if (numericPrice === null) {
+    throw new Error(`Extracted price is not a valid number or missing currency symbol: ${blockText}`);
   }
 
   const inStock = blockText.toLowerCase().includes('in stock') || !blockText.toLowerCase().includes('out of stock');
