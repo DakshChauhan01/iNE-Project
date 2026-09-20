@@ -77,33 +77,7 @@ export default function SearchPage() {
         </p>
       </div>
 
-      {rawItems.length > 0 && (
-        <div className="glass-panel p-4 rounded-xl flex flex-wrap gap-4 items-center shadow-md shadow-black/10 border border-[var(--panel-border)] bg-[var(--panel-bg)]">
-          <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] font-medium mr-2">
-            <Filter className="w-4 h-4" /> Filters
-          </div>
-          
-          <select 
-            value={selectedCategory} 
-            onChange={e => setSelectedCategory(e.target.value)}
-            className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-[var(--text-primary)]"
-          >
-            <option value="">All Categories</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          
-          <select 
-            value={selectedBrand} 
-            onChange={e => setSelectedBrand(e.target.value)}
-            className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-[var(--text-primary)]"
-          >
-            <option value="">All Brands</option>
-            {brands.map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
 
-          {/* Price and Stock filters removed per user request */}
-        </div>
-      )}
 
       {/* Category Chips - only show before a search term is active or if we want them as quick filters always */}
       {!searchTerm && categories.length > 0 && (

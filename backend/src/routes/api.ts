@@ -9,7 +9,8 @@ const prisma = new PrismaClient();
 router.get('/search', async (req, res) => {
   try {
     const q = (req.query.q as string)?.toLowerCase() || '';
-    const response = await fetch('https://demo.inelabteamdev.com/api/catalog?page=1&pageSize=50');
+    // Fetch a large page size to get all items since the mock store API lacks native search
+    const response = await fetch('https://demo.inelabteamdev.com/api/catalog?page=1&pageSize=1000');
     const data = await response.json();
     if (!data.items) {
       return res.json({ items: [] });
