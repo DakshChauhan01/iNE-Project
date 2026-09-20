@@ -27,6 +27,20 @@ router.get('/search', async (req, res) => {
   }
 });
 
+// GET /api/catalog
+router.get('/catalog', async (req, res) => {
+  try {
+    const response = await fetch('https://demo.inelabteamdev.com/api/catalog?page=1&pageSize=20');
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Store API failed' });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/store/product/:id
 router.get('/store/product/:id', async (req, res) => {
   try {

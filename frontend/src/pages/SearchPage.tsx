@@ -16,9 +16,12 @@ export default function SearchPage() {
   const { data: searchResults, isLoading } = useQuery({
     queryKey: ['search', searchTerm],
     queryFn: async () => {
-      if (!searchTerm) return { items: [] };
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/search?q=${encodeURIComponent(searchTerm)}`);
-      if (!res.ok) throw new Error('Search failed');
+      const url = searchTerm 
+        ? `${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/search?q=${encodeURIComponent(searchTerm)}`
+        : `${import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com'}/api/catalog`;
+      
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Search or Catalog fetch failed');
       return res.json();
     },
     enabled: true,
