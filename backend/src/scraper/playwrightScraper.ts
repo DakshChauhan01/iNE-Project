@@ -1,19 +1,35 @@
 import { chromium, type Page } from 'playwright';
 
-export interface ScrapeResult {
+/** One row that gets written to scrape_log for each individual attempt */
+export interface AttemptLog {
   status: 'success' | 'retried' | 'failed';
-  attempt_count: number;
+  attempt_number: number;
+  started_at: Date;
   duration_ms: number;
   method_used: string;
   error_message: string | null;
   structure_changed: boolean;
+}
+
+export interface ScrapeResult {
+  /** overall outcome — 'success', 'retried' (succeeded after ≥1 failure), or 'failed' */
+  final_status: 'success' | 'retried' | 'failed';
+  /** one log entry per attempt, oldest first */
+  attempts: AttemptLog[];
+  total_duration_ms: number;
   price: number | null;
   in_stock: boolean;
+  image_url: string | null;
 }
 
 const BACKOFF_DELAYS = [0, 2000, 5000, 10000];
 
-async function attemptScrape(page: Page): Promise<{ price: number; in_stock: boolean; structureHash: string }> {
+async function attemptScrape(page: Page, attemptCount: number): Promise<{ price: number; in_stock: boolean; structureHash: string; image_url: string | null }> {
+  if (process.env.FORCE_FAILURE === 'true' && attemptCount === 1) {
+    console.log('[Scraper] FORCE_FAILURE is enabled. Simulating a timeout on attempt 1...');
+    await page.waitForSelector('.non-existent-fake-selector', { timeout: 2000 });
+  }
+
   // Wait for the price block to appear
   const priceBlock = page.locator('.price-block');
   await priceBlock.waitFor({ state: 'attached', timeout: 10000 });
@@ -99,76 +115,128 @@ async function attemptScrape(page: Page): Promise<{ price: number; in_stock: boo
     hash |= 0; 
   }
 
+  // Extract product image URL if available
+  let imageUrl = null;
+  try {
+    const imgLocator = page.locator('img').first();
+    if (await imgLocator.count() > 0) {
+      imageUrl = await imgLocator.getAttribute('src');
+    }
+  } catch (e) {
+    // Ignore if image extraction fails
+  }
+
   return {
     price: numericPrice,
     in_stock: inStock,
-    structureHash: hash.toString()
+    structureHash: hash.toString(),
+    image_url: imageUrl
   };
 }
 
 
 
-export async function scrapeProduct(productId: string | number, previousStructureHash?: string | null, headed: boolean = false): Promise<ScrapeResult> {
-  const startTime = Date.now();
-  let attemptCount = 0;
+export async function scrapeProduct(
+  productId: string | number,
+  previousStructureHash?: string | null,
+  headed: boolean = false,
+): Promise<ScrapeResult> {
+  const totalStart = Date.now();
+  const attemptLogs: AttemptLog[] = [];
   let lastError: Error | null = null;
-  
+  let finalPrice: number | null = null;
+  let finalInStock = false;
+  let finalImageUrl: string | null = null;
+
   const browser = await chromium.launch({ headless: !headed, slowMo: headed ? 500 : 0 });
-  
+
   try {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     });
 
-    while (attemptCount < BACKOFF_DELAYS.length) {
-      if (attemptCount > 0) {
-        const delay = BACKOFF_DELAYS[attemptCount];
-        console.log(`[Scraper] Retrying in ${delay}ms... (Attempt ${attemptCount + 1})`);
-        await new Promise(res => setTimeout(res, delay));
+    for (let i = 0; i < BACKOFF_DELAYS.length; i++) {
+      const attemptNumber = i + 1;
+      const delay = BACKOFF_DELAYS[i];
+
+      const safeDelay: number = delay ?? 0;
+
+      if (safeDelay > 0) {
+        console.log(`[Scraper] Waiting ${safeDelay}ms before attempt ${attemptNumber}...`);
+        await new Promise(res => setTimeout(res, safeDelay));
       }
-      
-      attemptCount++;
+
+      const attemptStart = Date.now();
       const page = await context.newPage();
-      
+
       try {
-        await page.goto(`https://demo.inelabteamdev.com/product/${productId}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
-        
-        const result = await attemptScrape(page);
-        
-        const structureChanged = previousStructureHash ? result.structureHash !== previousStructureHash : false;
-        
+        await page.goto(
+          `https://demo.inelabteamdev.com/product/${productId}`,
+          { waitUntil: 'domcontentloaded', timeout: 15000 },
+        );
+
+        const result = await attemptScrape(page, attemptNumber);
+        const structureChanged = previousStructureHash
+          ? result.structureHash !== previousStructureHash
+          : false;
+
         await page.close();
-        
-        return {
-          status: attemptCount === 1 ? 'success' : 'retried',
-          attempt_count: attemptCount,
-          duration_ms: Date.now() - startTime,
+
+        finalPrice    = result.price;
+        finalInStock  = result.in_stock;
+        finalImageUrl = result.image_url;
+
+        // Log this specific attempt as successful
+        attemptLogs.push({
+          status: attemptNumber === 1 ? 'success' : 'retried',
+          attempt_number: attemptNumber,
+          started_at: new Date(attemptStart),
+          duration_ms: Date.now() - attemptStart,
           method_used: 'browser',
           error_message: null,
           structure_changed: structureChanged,
-          price: result.price,
-          in_stock: result.in_stock,
+        });
+
+        const final_status = attemptNumber === 1 ? 'success' : 'retried';
+        return {
+          final_status,
+          attempts: attemptLogs,
+          total_duration_ms: Date.now() - totalStart,
+          price: finalPrice,
+          in_stock: finalInStock,
+          image_url: finalImageUrl,
         };
       } catch (err: any) {
         lastError = err;
         await page.close();
-        // Continue to retry loop
+
+        // Log this individual failed attempt
+        attemptLogs.push({
+          status: 'failed',
+          attempt_number: attemptNumber,
+          started_at: new Date(attemptStart),
+          duration_ms: Date.now() - attemptStart,
+          method_used: 'browser',
+          error_message: err.message ?? 'Unknown error',
+          structure_changed: false,
+        });
+
+        console.log(`[Scraper] Attempt ${attemptNumber} failed: ${err.message}`);
+        // continue to next retry
       }
     }
   } finally {
     await browser.close();
   }
 
-  // If we exhaust all retries:
+  // All retries exhausted — final result is failed
   return {
-    status: 'failed',
-    attempt_count: attemptCount,
-    duration_ms: Date.now() - startTime,
-    method_used: 'browser',
-    error_message: lastError ? lastError.message : 'Unknown error',
-    structure_changed: false,
+    final_status: 'failed',
+    attempts: attemptLogs,
+    total_duration_ms: Date.now() - totalStart,
     price: null,
-    in_stock: false
+    in_stock: false,
+    image_url: null,
   };
 }

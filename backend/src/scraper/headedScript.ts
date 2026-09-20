@@ -9,8 +9,9 @@ async function run() {
     const result = await scrapeProduct(productId, null, true);
     console.log('--- Scrape Result ---');
     console.log(JSON.stringify(result, null, 2));
-    if (result.status === 'failed') {
-      console.error(`Scrape failed: ${result.error_message}`);
+    if (result.final_status === 'failed') {
+      const lastAttempt = result.attempts.at(-1);
+      console.error(`Scrape failed: ${lastAttempt?.error_message ?? 'Unknown error'}`);
       process.exit(1);
     }
   } catch (err) {

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useWakingUp } from '../hooks/useWakingUp';
 import { getCategoryEmoji } from '../utils/categoryEmoji';
@@ -8,6 +8,8 @@ import { useState } from 'react';
 const API = import.meta.env.VITE_API_URL || 'https://ine-project-yc8q.onrender.com';
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+  
   const { data: products, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
@@ -16,6 +18,22 @@ export default function Dashboard() {
       return res.json();
     },
     staleTime: 60000,
+    refetchInterval: (query) => {
+      const data = query.state.data as any[];
+      const hasPending = data?.some((p: any) => !p.price_histories?.length && p.scrape_logs?.[0]?.status !== 'failed');
+      return hasPending ? 3000 : false;
+    }
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${API}/api/products/${id}/scrape`, { method: 'POST' });
+      if (!res.ok) throw new Error('Retry failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    }
   });
 
   const isWakingUp = useWakingUp(isLoading);
@@ -204,7 +222,25 @@ export default function Dashboard() {
                         className="flex items-center justify-center gap-2 p-3 rounded-xl text-sm"
                         style={{ background: 'var(--skeleton-bg)', border: '1px solid var(--panel-border)', color: 'var(--text-muted)' }}
                       >
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" /> Awaiting first scrape…
+                        {product.scrape_logs?.[0]?.status === 'failed' ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-red-400 flex items-center gap-1 text-xs font-medium"><AlertCircle className="w-3 h-3" /> Scrape failed</span>
+                            <button 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                retryMutation.mutate(product.id);
+                              }}
+                              disabled={retryMutation.isPending}
+                              className="text-xs bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 px-3 py-1 rounded-full transition-colors border border-blue-500/30"
+                            >
+                              {retryMutation.isPending ? 'Retrying...' : 'Retry Now'}
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" /> Scraping now…
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

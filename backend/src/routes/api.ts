@@ -63,6 +63,10 @@ router.get('/products', async (req, res) => {
         price_histories: {
           orderBy: { scraped_at: 'desc' },
           take: 1
+        },
+        scrape_logs: {
+          orderBy: { started_at: 'desc' },
+          take: 1
         }
       }
     });
@@ -84,6 +88,11 @@ router.post('/products', async (req, res) => {
     
     const product = await prisma.product.create({
       data: { name, store_url, store_product_id, image_url, category }
+    });
+    
+    // Trigger scrape in background immediately
+    runScrapeForProduct(product.id, product.store_product_id).catch(err => {
+      console.error(`Background scrape failed for product ${product.id}:`, err);
     });
     
     res.json(product);
