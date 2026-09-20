@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Search as SearchIcon, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Search as SearchIcon, Plus, Image, SearchX } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useWakingUp } from '../hooks/useWakingUp';
+import { getCategoryEmoji } from '../utils/categoryEmoji';
 
 export default function SearchPage() {
-  const [query, setQuery] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const searchTerm = searchParams.get('q') || '';
   const navigate = useNavigate();
 
   const { data: searchResults, isLoading } = useQuery({
@@ -16,8 +18,11 @@ export default function SearchPage() {
       if (!res.ok) throw new Error('Search failed');
       return res.json();
     },
-    enabled: searchTerm.length > 0
+    enabled: searchTerm.length > 0,
+    staleTime: 60000,
   });
+
+  const isWakingUp = useWakingUp(isLoading);
 
   const trackMutation = useMutation({
     mutationFn: async (product: any) => {
@@ -29,6 +34,7 @@ export default function SearchPage() {
           store_url: `https://demo.inelabteamdev.com/product/${product.id}`,
           store_product_id: String(product.id),
           image_url: product.image_url || null,
+          category: product.category || null,
         }),
       });
       if (!res.ok) throw new Error('Failed to track product');
@@ -39,62 +45,84 @@ export default function SearchPage() {
     }
   });
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchTerm(query);
-  };
+
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl shadow-xl shadow-black/20">
-        <h1 className="text-3xl font-bold mb-2">Search Store</h1>
-        <p className="text-neutral-400 mb-6">Find products to track from the iNE demo store.</p>
-        
-        <form onSubmit={handleSearch} className="flex gap-4">
-          <div className="relative flex-1">
-            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
-            <input 
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name or brand..."
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-neutral-100"
-            />
-          </div>
-          <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg shadow-blue-900/20 active:scale-95">
-            Search
-          </button>
-        </form>
+    <div className="space-y-6 animate-fade-in relative z-10">
+      <div className="glass-panel p-8 rounded-2xl shadow-xl shadow-black/20">
+        <h1 className="text-3xl font-bold font-display tracking-tight mb-2">
+          {searchTerm ? `Results for "${searchTerm}"` : "Search Store"}
+        </h1>
+        <p className="text-neutral-400">
+          {searchTerm ? "Find products to track from the iNE demo store." : "Enter a search query in the top bar to find products to track."}
+        </p>
       </div>
 
       {isLoading && (
-        <div className="flex justify-center p-12">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton h-[150px] w-full flex flex-col p-6">
+               <div className="flex gap-4 mb-4">
+                  <div className="w-16 h-16 bg-white/10 rounded-lg shrink-0"></div>
+                  <div className="flex-1 space-y-2 mt-1">
+                     <div className="h-5 bg-white/10 rounded w-3/4"></div>
+                     <div className="h-4 bg-white/10 rounded w-1/2"></div>
+                  </div>
+               </div>
+               <div className="mt-auto">
+                 <div className="h-10 bg-white/10 rounded-lg w-full"></div>
+               </div>
+            </div>
+          ))}
+          {isWakingUp && (
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-4 text-blue-400 font-medium animate-pulse">
+              Waking up the server, this can take up to a minute on the free tier...
+            </div>
+          )}
         </div>
       )}
 
       {searchResults?.items && searchResults.items.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {searchResults.items.map((item: any) => (
-            <div key={item.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 hover:border-neutral-700 transition-colors group">
-              <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-blue-400 transition-colors">{item.name}</h3>
-              <p className="text-sm text-neutral-500 mb-4">{item.brand}</p>
+            <div key={item.id} className="glass-panel rounded-2xl p-6 hover:-translate-y-1 hover:border-white/30 transition-all duration-200 ease-out hover:shadow-2xl hover:shadow-blue-900/10 group flex flex-col">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-16 h-16 shrink-0 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center overflow-hidden">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl" title={item.category || 'Unknown Category'}>
+                      {getCategoryEmoji(item.name, item.category)}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold font-display text-lg line-clamp-1 group-hover:text-blue-300 transition-colors text-white drop-shadow-sm">{item.name}</h3>
+                  <p className="text-sm text-neutral-300 drop-shadow-sm">{item.brand}</p>
+                </div>
+              </div>
               
-              <button 
-                onClick={() => trackMutation.mutate(item)}
-                disabled={trackMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all disabled:opacity-50"
-              >
-                {trackMutation.isPending ? 'Tracking...' : <><Plus className="w-4 h-4" /> Track Product</>}
-              </button>
+              <div className="mt-auto">
+                <button 
+                  onClick={() => trackMutation.mutate(item)}
+                  disabled={trackMutation.isPending}
+                  className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all disabled:opacity-50 border border-white/10 shadow-sm"
+                >
+                  {trackMutation.isPending ? 'Tracking...' : <><Plus className="w-4 h-4" /> Track Product</>}
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
       
       {searchResults?.items && searchResults.items.length === 0 && (
-        <div className="text-center p-12 text-neutral-500">
-          No products found matching "{searchTerm}".
+        <div className="text-center glass-panel p-12 rounded-2xl flex flex-col items-center">
+          <div className="bg-red-500/10 p-4 rounded-full mb-4 border border-red-500/20">
+            <SearchX className="w-8 h-8 text-red-400" />
+          </div>
+          <h2 className="text-xl font-bold font-display mb-2">No products found</h2>
+          <p className="text-neutral-400">We couldn't find anything matching "{searchTerm}". Try another search.</p>
         </div>
       )}
     </div>

@@ -26,6 +26,20 @@ router.get('/search', async (req, res) => {
   }
 });
 
+// GET /api/store/product/:id
+router.get('/store/product/:id', async (req, res) => {
+  try {
+    const response = await fetch(`https://demo.inelabteamdev.com/api/product/${req.params.id}`);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Store API failed' });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/products
 router.get('/products', async (req, res) => {
   try {
@@ -46,7 +60,7 @@ router.get('/products', async (req, res) => {
 // POST /api/products
 router.post('/products', async (req, res) => {
   try {
-    const { name, store_url, store_product_id, image_url } = req.body;
+    const { name, store_url, store_product_id, image_url, category } = req.body;
     
     const existing = await prisma.product.findUnique({ where: { store_url } });
     if (existing) {
@@ -54,9 +68,21 @@ router.post('/products', async (req, res) => {
     }
     
     const product = await prisma.product.create({
-      data: { name, store_url, store_product_id, image_url }
+      data: { name, store_url, store_product_id, image_url, category }
     });
     
+    res.json(product);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/products/:id
+router.get('/products/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(product);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -110,38 +136,54 @@ async function runScrapeForProduct(productId: number, storeProductId: string) {
     where: { product_id: productId, status: { in: ['success', 'retried'] } },
     orderBy: { started_at: 'desc' }
   });
-  
-  // NOTE: In a real system, we might store the structure hash on the product or in the log.
-  // For simplicity here, we rely on the scraper logic. 
-  
+
   const result = await scrapeProduct(storeProductId);
-  
-  const log = await prisma.scrapeLog.create({
-    data: {
-      product_id: productId,
-      finished_at: new Date(),
-      status: result.status,
-      attempt_count: result.attempt_count,
-      duration_ms: result.duration_ms,
-      method_used: result.method_used,
-      error_message: result.error_message,
-      structure_changed: result.structure_changed
+
+  // Update product image if the scraper found one
+  if (result.image_url) {
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (product && product.image_url !== result.image_url) {
+      await prisma.product.update({
+        where: { id: productId },
+        data: { image_url: result.image_url }
+      });
     }
-  });
-  
-  if (result.status !== 'failed' && result.price !== null) {
+  }
+
+  // Write ONE scrape_log row per individual attempt (not just the final result)
+  const logRows = await Promise.all(
+    result.attempts.map(attempt =>
+      prisma.scrapeLog.create({
+        data: {
+          product_id: productId,
+          started_at: attempt.started_at,
+          finished_at: new Date(attempt.started_at.getTime() + attempt.duration_ms),
+          status: attempt.status,
+          attempt_count: attempt.attempt_number,
+          duration_ms: attempt.duration_ms,
+          method_used: attempt.method_used,
+          error_message: attempt.error_message,
+          structure_changed: attempt.structure_changed,
+        }
+      })
+    )
+  );
+
+  // Only write a price_history row if we ultimately succeeded
+  if (result.final_status !== 'failed' && result.price !== null) {
     await prisma.priceHistory.create({
       data: {
         product_id: productId,
         price: result.price,
         in_stock: result.in_stock,
-        method: result.method_used
+        method: 'browser'
       }
     });
   }
-  
-  return { log, result };
+
+  return { logs: logRows, result };
 }
+
 
 // POST /api/products/:id/scrape
 router.post('/products/:id/scrape', async (req, res) => {
