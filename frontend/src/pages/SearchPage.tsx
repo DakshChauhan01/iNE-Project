@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Search as SearchIcon, Plus, Image, SearchX } from 'lucide-react';
+import { Search as SearchIcon, Plus, Image, SearchX, Filter } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWakingUp } from '../hooks/useWakingUp';
 import { getCategoryEmoji } from '../utils/categoryEmoji';
@@ -9,6 +9,9 @@ export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const searchTerm = searchParams.get('q') || '';
   const navigate = useNavigate();
+
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
 
   const { data: searchResults, isLoading } = useQuery({
     queryKey: ['search', searchTerm],
@@ -45,6 +48,17 @@ export default function SearchPage() {
     }
   });
 
+  const rawItems = searchResults?.items || [];
+  
+  const categories = Array.from(new Set(rawItems.map((item: any) => item.category).filter(Boolean))) as string[];
+  const brands = Array.from(new Set(rawItems.map((item: any) => item.brand).filter(Boolean))) as string[];
+
+  const filteredItems = rawItems.filter((item: any) => {
+    if (selectedCategory && item.category !== selectedCategory) return false;
+    if (selectedBrand && item.brand !== selectedBrand) return false;
+    return true;
+  });
+
 
 
   return (
@@ -57,6 +71,47 @@ export default function SearchPage() {
           {searchTerm ? "Find products to track from the iNE demo store." : "Enter a search query in the top bar to find products to track."}
         </p>
       </div>
+
+      {rawItems.length > 0 && (
+        <div className="glass-panel p-4 rounded-xl flex flex-wrap gap-4 items-center shadow-md shadow-black/10 border border-[var(--panel-border)] bg-[var(--panel-bg)]">
+          <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] font-medium mr-2">
+            <Filter className="w-4 h-4" /> Filters
+          </div>
+          
+          <select 
+            value={selectedCategory} 
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-[var(--text-primary)]"
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          
+          <select 
+            value={selectedBrand} 
+            onChange={e => setSelectedBrand(e.target.value)}
+            className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-[var(--text-primary)]"
+          >
+            <option value="">All Brands</option>
+            {brands.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+
+          <div className="h-6 w-px bg-[var(--panel-border)] mx-2 hidden sm:block"></div>
+
+          <div className="flex gap-4 items-center opacity-50 cursor-not-allowed" title="Price and stock filters are available in the Dashboard for tracked products">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+              <input type="checkbox" disabled className="rounded border-[var(--input-border)] bg-[var(--input-bg)]" />
+              In Stock Only
+            </label>
+            <div className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+              <span>Price:</span>
+              <input type="number" disabled placeholder="Min" className="w-16 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1 text-xs" />
+              <span>-</span>
+              <input type="number" disabled placeholder="Max" className="w-16 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1 text-xs" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -82,9 +137,9 @@ export default function SearchPage() {
         </div>
       )}
 
-      {searchResults?.items && searchResults.items.length > 0 && (
+      {filteredItems.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {searchResults.items.map((item: any) => (
+          {filteredItems.map((item: any) => (
             <div key={item.id} className="glass-panel rounded-2xl p-6 hover:-translate-y-1 hover:border-white/30 transition-all duration-200 ease-out hover:shadow-2xl hover:shadow-blue-900/10 group flex flex-col">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-16 h-16 shrink-0 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center overflow-hidden">
@@ -97,8 +152,8 @@ export default function SearchPage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold font-display text-lg line-clamp-1 group-hover:text-blue-300 transition-colors text-white drop-shadow-sm">{item.name}</h3>
-                  <p className="text-sm text-neutral-300 drop-shadow-sm">{item.brand}</p>
+                  <h3 className="font-bold font-display text-lg line-clamp-1 group-hover:text-blue-300 transition-colors text-white drop-shadow-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</h3>
+                  <p className="text-sm text-neutral-300 drop-shadow-sm" style={{ color: 'var(--text-secondary)' }}>{item.brand}</p>
                 </div>
               </div>
               
@@ -106,7 +161,7 @@ export default function SearchPage() {
                 <button 
                   onClick={() => trackMutation.mutate(item)}
                   disabled={trackMutation.isPending}
-                  className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all disabled:opacity-50 border border-white/10 shadow-sm"
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600/90 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all disabled:opacity-50 border border-transparent shadow-sm"
                 >
                   {trackMutation.isPending ? 'Tracking...' : <><Plus className="w-4 h-4" /> Track Product</>}
                 </button>
@@ -116,7 +171,7 @@ export default function SearchPage() {
         </div>
       )}
       
-      {searchResults?.items && searchResults.items.length === 0 && (
+      {!isLoading && searchResults && filteredItems.length === 0 && (
         <div className="text-center glass-panel p-12 rounded-2xl flex flex-col items-center">
           <div className="bg-red-500/10 p-4 rounded-full mb-4 border border-red-500/20">
             <SearchX className="w-8 h-8 text-red-400" />
