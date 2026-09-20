@@ -62,6 +62,8 @@ export default function SearchPage() {
     return true;
   });
 
+  console.log("Search dropdown population data:", { categories, brands, rawItemsLength: rawItems.length });
+
 
 
   return (
@@ -99,20 +101,7 @@ export default function SearchPage() {
             {brands.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
 
-          <div className="h-6 w-px bg-[var(--panel-border)] mx-2 hidden sm:block"></div>
-
-          <div className="flex gap-4 items-center opacity-50 cursor-not-allowed" title="Price and stock filters are available in the Dashboard for tracked products">
-            <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-              <input type="checkbox" disabled className="rounded border-[var(--input-border)] bg-[var(--input-bg)]" />
-              In Stock Only
-            </label>
-            <div className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-              <span>Price:</span>
-              <input type="number" disabled placeholder="Min" className="w-16 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1 text-xs" />
-              <span>-</span>
-              <input type="number" disabled placeholder="Max" className="w-16 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1 text-xs" />
-            </div>
-          </div>
+          {/* Price and Stock filters removed per user request */}
         </div>
       )}
 
